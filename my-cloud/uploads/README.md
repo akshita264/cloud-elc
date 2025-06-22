@@ -23,7 +23,7 @@ This project aims to build a **secure, offline-accessible private cloud system**
 
 | Layer        | Technologies                     |
 |--------------|----------------------------------|
-| Frontend     | HTML, CSS, JavaScript, Flutter   |
+| Frontend     | HTML, CSS, JavaScript            |
 | Backend      | Node.js / Flask (Optional)       |
 | Database     | MySQL                            |
 | Sync Engine  | Syncthing / IPFS / Rsync         |
@@ -45,17 +45,10 @@ This project aims to build a **secure, offline-accessible private cloud system**
    ```bash
    git clone https://github.com/<your-username>/private-cloud-server.git
 
-2. Set up the backend:
-cd backend
-npm install  # or pip install -r requirements.txt if using Flask
-
-3. Set up the frontend:
-cd frontend
-# Open in browser or run using Flutter
-
-4. Configure the sync engine (Syncthing/IPFS) following the documentation in /scripts.
-   
-5. Launch the server and test local access on devices connected to the same network.
+## How to Run
+1. Install dependencies: `npm install express multer express-session body-parser`
+2. Start server: `node server.js`
+3. Open in browser: `http://localhost:3000`
 
 
 👥 Contributors
