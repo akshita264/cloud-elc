@@ -2,8 +2,8 @@
 <html>
 <head>
   <title>MyCloud Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
 </head>
 <body>
   <div class="container">
@@ -15,7 +15,7 @@
       <button type="submit">Upload</button>
     </form>
 
-    <h2>📄 Files</h2>
+    <h2>📄 Uploaded Files</h2>
     <ul id="fileList"></ul>
   </div>
 
@@ -23,27 +23,24 @@
     document.getElementById('uploadForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const formData = new FormData();
-      const fileInput = document.getElementById('fileInput');
-      formData.append('file', fileInput.files[0]);
+      formData.append('file', document.getElementById('fileInput').files[0]);
 
-      await fetch('/upload', {
-        method: 'POST',
-        body: formData
-      });
+      await fetch('/upload', { method: 'POST', body: formData });
       window.location.reload();
     });
 
     fetch('/files')
       .then(res => res.json())
-      .then(data => {
+      .then(files => {
         const list = document.getElementById('fileList');
-        data.forEach(file => {
-          let li = document.createElement('li');
-          li.innerHTML = `<a href="/download/${file}">${file}</a>`;
+        files.forEach(file => {
+          const li = document.createElement('li');
+          li.innerHTML = `<a href="/uploads/${file}" target="_blank">${file}</a>`;
           list.appendChild(li);
         });
       });
   </script>
 </body>
 </html>
+
 
