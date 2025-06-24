@@ -9,10 +9,42 @@ const app = express();
 const PORT = 3000;
 
 // Multer storage config
+const uploadDir = path.join(__dirname, 'uploads');
+
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, path.join(__dirname, 'uploads')),
-  filename: (req, file, cb) => cb(null, file.originalname)
+  destination: (req, file, cb) => {
+    const today = new Date();
+    const folderName = today.toISOString().split('T')[0]; // yyyy-mm-dd
+    const fullPath = path.join(__dirname, 'uploads', folderName);
+
+    // Create folder if it doesn't exist
+    if (!fs.existsSync(fullPath)) {
+      fs.mkdirSync(fullPath, { recursive: true });
+    }
+
+    cb(null, fullPath);
+  },
+
+  filename: (req, file, cb) => {
+    const originalName = file.originalname;
+    const base = path.parse(originalName).name;
+    const ext = path.extname(originalName);
+    let filename = originalName;
+    let counter = 1;
+
+    const today = new Date();
+    const folderName = today.toISOString().split('T')[0];
+    const fullPath = path.join(__dirname, 'uploads', folderName);
+
+    while (fs.existsSync(path.join(fullPath, filename))) {
+      filename = `${base}(${counter})${ext}`;
+      counter++;
+    }
+
+    cb(null, filename);
+  }
 });
+
 const upload = multer({ storage });
 
 // Middleware
