@@ -1,76 +1,30 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>MyCloud Dashboard</title>
-    <link rel="stylesheet" href="style.css" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-  </head>
-  <body>
-    <div class="container">
-      <h1>📁 MyCloud Dashboard</h1>
-      <a href="/logout" class="logout">Logout</a>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MyCloud – Your Private Cloud</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+</head>
+<body class="landing-body">
+  <div class="overlay"></div>
+  <div class="landing-container glass">
+    <h1>Welcome to <span>MyCloud</span></h1>
+    <p class="tagline">Tired of your data being used for profit? Make your own private cloud.</p>
 
-      <form id="uploadForm" enctype="multipart/form-data">
-        <input type="file" name="file" id="fileInput" />
-        <button type="submit">Upload</button>
-      </form>
-
-      <h2>📄 Uploaded Files</h2>
-      <ul id="fileList"></ul>
+    <!-- Button group -->
+    <div class="button-group">
+      <a href="/login.html" class="btn login-btn">Login</a>
+      <a href="/register.html" class="btn register-btn">Register</a>
     </div>
 
-    <script>
-      document
-        .getElementById("uploadForm")
-        .addEventListener("submit", async (e) => {
-          e.preventDefault();
-
-          const fileInput = document.getElementById("fileInput");
-          const file = fileInput.files[0];
-
-          if (!file) {
-            alert("⚠️ Please select a file to upload.");
-            return;
-          }
-
-          const formData = new FormData();
-          formData.append("file", file);
-
-          try {
-            const response = await fetch("/upload", {
-              method: "POST",
-              body: formData,
-              credentials: "include", // ⬅️ Important for session-based login
-            });
-            console.log(response);
-
-            const text = await response.text();
-            if (response.ok) {
-              alert("✅ File uploaded successfully!");
-              window.location.reload();
-            } else {
-              alert(`❌ Upload failed: ${text}`);
-            }
-          } catch (err) {
-            console.error("Upload error:", err);
-            alert("❌ An error occurred during upload. Please try again.");
-          }
-        });
-
-      // Load uploaded files
-      fetch("/files", { credentials: "include" })
-        .then((res) => res.json())
-        .then((files) => {
-          const list = document.getElementById("fileList");
-          files.forEach((file) => {
-            const li = document.createElement("li");
-            li.innerHTML = `<a href="/uploads/${file}" target="_blank">${file}</a>`;
-            list.appendChild(li);
-          });
-        })
-        .catch((err) => {
-          console.error("Error fetching file list:", err);
-        });
-    </script>
-  </body>
+  <script>
+    // Optionally show a flash message after upload (if redirected back with a query)
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('upload')) {
+      const msg = document.getElementById('upload-message');
+      msg.textContent = decodeURIComponent(params.get('upload'));
+    }
+  </script>
+</body>
 </html>
