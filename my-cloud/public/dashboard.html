@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard – MyCloud</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    .folder-item {
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .toggle-icon {
+      margin-left: auto;
+      font-size: 1.2rem;
+    }
+    .file-list-in-folder {
+      display: none;
+      list-style: none;
+      padding-left: 1.5rem;
+    }
+    .file-list-in-folder.show {
+      display: block;
+    }
+    .file-item {
+      margin: 0.3rem 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .file-item a {
+      text-decoration: none;
+      color: #0288d1;
+    }
+    .delete-btn {
+      background: #e74c3c;
+      color: white;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .delete-btn:hover {
+      background: #c0392b;
+    }
+    #uploadMessage {
+      font-weight: 600;
+      margin-top: 0.5rem;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>MyCloud</h1>
+    <form action="/logout" method="GET">
+      <button class="logout-btn">Logout</button>
+    </form>
+  </header>
+
+  <main class="dashboard-container">
+    <section class="upload-section">
+      <h2>📤 Upload a File</h2>
+      <form id="uploadForm">
+        <input type="file" id="fileInput" name="file" hidden />
+        <button type="button" id="uploadButton">Choose File</button>
+        <span id="fileNameDisplay">No file chosen.</span><br />
+        <span id="uploadMessage"></span>
+      </form>
+    </section>
+
+    <section class="file-section">
+      <h2>📁 Your Files</h2>
+      <div id="fileList"></div>
+    </section>
+  </main>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const uploadButton = document.getElementById('uploadButton');
+      const fileInput = document.getElementById('fileInput');
+      const fileNameDisplay = document.getElementById('fileNameDisplay');
+      const uploadForm = document.getElementById('uploadForm');
+      const fileListContainer = document.getElementById('fileList');
+      const uploadMsg = document.getElementById('uploadMessage');
+
+      uploadButton.addEventListener('click', () => {
+        fileInput.click();
+      });
+
+      fileInput.addEventListener('change', async () => {
+        if (fileInput.files.length > 0) {
+          const selectedFile = fileInput.files[0];
+          fileNameDisplay.textContent = `Selected: ${selectedFile.name}`;
+          const formData = new FormData();
+          formData.append('file', selectedFile);
+
+          try {
+            const response = await fetch(`${window.location.origin}/upload`, {
+              method: 'POST',
+              body: formData
+            });
+
+            if (response.ok) {
+              uploadMsg.textContent = '✅ Upload successful!';
+              uploadMsg.style.color = 'green';
+              fileNameDisplay.textContent = 'No file chosen.';
+              uploadForm.reset();
+              fetchFiles();
+
+              setTimeout(() => { uploadMsg.textContent = ''; }, 4000);
+            } else {
+              const errorText = await response.text();
+              uploadMsg.textContent = `❌ Upload failed: ${errorText}`;
+              uploadMsg.style.color = 'red';
+            }
+          } catch (error) {
+            console.error('Error during upload:', error);
+            uploadMsg.textContent = '❌ Upload error. Check console.';
+            uploadMsg.style.color = 'red';
+          }
+        } else {
+          fileNameDisplay.textContent = 'No file chosen.';
+        }
+      });
+
+      async function fetchFiles() {
+        try {
+          const response = await fetch(`${window.location.origin}/files`);
+          if (!response.ok) throw new Error('Fetch failed');
+          const files = await response.json();
+          fileListContainer.innerHTML = '';
+
+          if (files.length === 0) {
+            fileListContainer.innerHTML = '<p>No files uploaded yet.</p>';
+            return;
+          }
+
+          const folders = {};
+          files.forEach(file => {
+            const parts = file.path.split('/');
+            const folder = parts[0]; // date
+            const name = parts.slice(1).join('/');
+            if (!folders[folder]) folders[folder] = [];
+            folders[folder].push({ ...file, name });
+          });
+
+          const sortedFolders = Object.keys(folders).sort((a, b) => b.localeCompare(a));
+
+          sortedFolders.forEach(folder => {
+            const folderDiv = document.createElement('div');
+            folderDiv.className = 'folder-item';
+            folderDiv.innerHTML = `
+              <span class="folder-icon">📂</span> ${folder}
+              <span class="toggle-icon">▼</span>
+            `;
+            fileListContainer.appendChild(folderDiv);
+
+            const ul = document.createElement('ul');
+            ul.className = 'file-list-in-folder';
+            fileListContainer.appendChild(ul);
+
+            folders[folder].forEach(file => {
+              const li = document.createElement('li');
+              li.className = 'file-item';
+              const fileSizeKB = (file.size / 1024).toFixed(1);
+              const encodedPath = encodeURIComponent(file.path);
+
+              li.innerHTML = `
+                <span>
+                  <a href="/download/${encodedPath}" download>${file.name}</a>
+                  <small style="color:gray; font-size: 0.9rem;">(${fileSizeKB} KB)</small>
+                </span>
+                <button class="delete-btn" onclick="deleteFile('${encodedPath}')">🗑️</button>
+              `;
+              ul.appendChild(li);
+            });
+
+            folderDiv.addEventListener('click', () => {
+              ul.classList.toggle('show');
+              const icon = folderDiv.querySelector('.toggle-icon');
+              icon.textContent = ul.classList.contains('show') ? '▲' : '▼';
+            });
+          });
+
+        } catch (err) {
+          console.error('Fetch error:', err);
+          fileListContainer.innerHTML = '<p>Error loading files.</p>';
+        }
+      }
+
+      window.deleteFile = async function (filePath) {
+        if (!confirm(`Are you sure you want to delete:\n${decodeURIComponent(filePath)}?`)) return;
+
+        try {
+          const response = await fetch(`/delete/${filePath}`, {
+            method: 'DELETE'
+          });
+
+          if (response.ok) {
+            alert('✅ File deleted');
+            fetchFiles();
+          } else {
+            const msg = await response.text();
+            alert(`❌ Failed: ${msg}`);
+          }
+        } catch (err) {
+          console.error('Delete failed:', err);
+          alert('Network error');
+        }
+      };
+
+      fetchFiles();
+    });
+  </script>
+</body>
+</html>
