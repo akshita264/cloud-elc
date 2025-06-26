@@ -1,175 +1,230 @@
 const express = require('express');
 const multer = require('multer');
-const path = require('path');
 const fs = require('fs');
+const path = require('path');
 const session = require('express-session');
 const bodyParser = require('body-parser');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = 3000;
-
-// Multer storage config
 const uploadDir = path.join(__dirname, 'uploads');
 
+// === Multer Storage Config ===
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const today = new Date();
-        const folderName = today.toISOString().split('T')[0]; // YYYY-MM-DD
-        const fullPath = path.join(__dirname, 'uploads', folderName);
+  destination: (req, file, cb) => {
+    const today = new Date();
+    const folderName = today.toISOString().split('T')[0]; // yyyy-mm-dd
+    const fullPath = path.join(uploadDir, folderName);
 
-        // Create folder if it doesn't exist
-        if (!fs.existsSync(fullPath)) {
-            fs.mkdirSync(fullPath, { recursive: true });
-        }
+    console.log("📁 Upload destination:", fullPath);
 
-        cb(null, fullPath);
-    },
-
-    filename: (req, file, cb) => {
-        const originalName = file.originalname;
-        const base = path.parse(originalName).name;
-        const ext = path.extname(originalName);
-        let filename = originalName;
-        let counter = 1;
-
-        const today = new Date();
-        const folderName = today.toISOString().split('T')[0];
-        const fullPath = path.join(__dirname, 'uploads', folderName);
-
-        while (fs.existsSync(path.join(fullPath, filename))) {
-            filename = `${base}(${counter})${ext}`;
-            counter++;
-        }
-
-        cb(null, filename);
+    if (!fs.existsSync(fullPath)) {
+      fs.mkdirSync(fullPath, { recursive: true });
     }
+
+    cb(null, fullPath);
+  },
+
+  filename: (req, file, cb) => {
+    const originalName = file.originalname;
+    const base = path.parse(originalName).name;
+    const ext = path.extname(originalName);
+    let filename = originalName;
+    let counter = 1;
+
+    const today = new Date();
+    const folderName = today.toISOString().split('T')[0];
+    const fullPath = path.join(uploadDir, folderName);
+
+    while (fs.existsSync(path.join(fullPath, filename))) {
+      filename = `${base}(${counter})${ext}`;
+      counter++;
+    }
+
+    cb(null, filename);
+  }
 });
 
 const upload = multer({ storage });
 
-// Middleware
+// === Middleware ===
 app.use(express.static('public'));
-// Serve files from the 'uploads' directory, allowing access to subdirectories
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(uploadDir));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(session({
-    secret: 'mycloudsecret',
-    resave: false,
-    saveUninitialized: true
+  secret: 'mycloudsecret',
+  resave: false,
+  saveUninitialized: true
 }));
 
-// Auth check
+// === Auth Middleware ===
 function isAuthenticated(req, res, next) {
-    if (req.session.user) return next();
-    res.redirect('/login.html');
+  if (req.session.user) return next();
+  res.redirect('/login.html');
 }
 
-// Routes
+// === Routes ===
+
+// Login
 app.post('/login', (req, res) => {
-    const { username, password } = req.body;
-    const users = JSON.parse(fs.readFileSync('users.json'));
-    const user = users.find(u => u.username === username && u.password === password);
-    if (user) {
-        req.session.user = user;
-        res.redirect('/');
-    } else {
-        res.send('Invalid credentials');
-    }
+  const { username, password } = req.body;
+  const users = JSON.parse(fs.readFileSync('users.json'));
+  const user = users.find(u => u.username === username && u.password === password);
+  if (user) {
+    req.session.user = user;
+    res.redirect('/dashboard.html');
+  } else {
+    res.redirect('/invalid_credentials.html');
+  }
 });
 
+// Register
 app.post('/register', (req, res) => {
-    const { username, password } = req.body;
-    let users = [];
-    if (fs.existsSync('users.json')) {
-        users = JSON.parse(fs.readFileSync('users.json'));
-    }
-    const exists = users.find(u => u.username === username);
-    if (exists) return res.send('User already exists');
+  const { username, password } = req.body;
+  let users = [];
 
-    users.push({ username, password });
-    fs.writeFileSync('users.json', JSON.stringify(users, null, 2));
-    res.redirect('/login.html');
+  if (fs.existsSync('users.json')) {
+    users = JSON.parse(fs.readFileSync('users.json'));
+  }
+
+  const exists = users.find(u => u.username === username);
+  if (exists) return res.send('User already exists');
+
+  users.push({ username, password });
+  fs.writeFileSync('users.json', JSON.stringify(users, null, 2));
+  res.redirect('/login.html');
 });
 
+// Logout
 app.get('/logout', (req, res) => {
-    req.session.destroy(() => res.redirect('/login.html'));
+  req.session.destroy(() => res.redirect('/login.html'));
 });
 
+// Upload File (with deduplication)
 app.post('/upload', isAuthenticated, upload.single('file'), (req, res) => {
-    // req.file contains information about the uploaded file, including its path
-    if (req.file) {
-        console.log('✅ Uploaded:', req.file.path); // Log the full path where Multer saved it
-        res.status(200).send('File uploaded successfully!');
-    } else {
-        res.status(400).send('No file uploaded or an error occurred.');
+  if (req.file) {
+    const uploadedPath = req.file.path;
+    const uploadedFileBuffer = fs.readFileSync(uploadedPath);
+    const uploadedHash = crypto.createHash('sha256').update(uploadedFileBuffer).digest('hex');
+
+    const allFiles = getAllFiles(uploadDir);
+
+    const filteredFiles = allFiles.filter(file => {
+      const fullPath = path.join(uploadDir, file);
+      return fullPath !== uploadedPath;
+    });
+
+    for (let relPath of filteredFiles) {
+      const existingPath = path.join(uploadDir, relPath);
+      if (!fs.existsSync(existingPath)) continue;
+
+      const existingBuffer = fs.readFileSync(existingPath);
+      const existingHash = crypto.createHash('sha256').update(existingBuffer).digest('hex');
+
+      if (uploadedHash === existingHash) {
+        fs.unlinkSync(uploadedPath);
+        return res.status(409).send('A file with identical content already exists.');
+      }
     }
+
+    console.log('✅ Uploaded:', req.file.path);
+    return res.status(200).send('OK');
+  } else {
+    return res.status(400).send('No file uploaded.');
+  }
 });
 
-// Helper function to recursively get all file paths
+// Recursive file collector
 const getAllFiles = (dir, filesList = []) => {
-    const files = fs.readdirSync(dir);
-
-    files.forEach(file => {
-        const filePath = path.join(dir, file);
-        const stat = fs.statSync(filePath);
-
-        if (stat.isDirectory()) {
-            getAllFiles(filePath, filesList); // Recurse into subdirectories
-        } else {
-            // Add the path relative to the base 'uploads' directory
-            // IMPORTANT: Replace backslashes with forward slashes for consistent URL paths
-            const relativePath = path.relative(uploadDir, filePath);
-            filesList.push(relativePath.replace(/\\/g, '/'));
-        }
-    });
-    return filesList;
+  const files = fs.readdirSync(dir);
+  files.forEach(file => {
+    const filePath = path.join(dir, file);
+    const stat = fs.statSync(filePath);
+    if (stat.isDirectory()) {
+      getAllFiles(filePath, filesList);
+    } else {
+      const relativePath = path.relative(uploadDir, filePath).replace(/\\/g, '/');
+      filesList.push(relativePath);
+    }
+  });
+  return filesList;
 };
 
+// Return files with path + size
 app.get('/files', isAuthenticated, (req, res) => {
-    try {
-        if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true }); // Ensure uploads directory exists
-        }
-        const files = getAllFiles(uploadDir);
-        res.json(files);
-    } catch (err) {
-        console.error('Error reading files:', err);
-        res.status(500).send('Error reading files');
-    }
-});
-
-// This route will now handle full file paths including subdirectories
-app.get('/download/:filepath(*)', isAuthenticated, (req, res) => {
-    // The '(*)' wildcard captures the entire path including slashes
-    const filePath = path.join(uploadDir, req.params.filepath);
-    
-    // Ensure the file exists and is within the uploads directory for security
-    // Use path.normalize to handle cases where '../' might be present in filepath
-    const normalizedFilePath = path.normalize(filePath);
-    if (!fs.existsSync(normalizedFilePath) || !normalizedFilePath.startsWith(uploadDir)) {
-        return res.status(404).send('File not found or unauthorized access attempt.');
+  try {
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
     }
 
-    res.download(normalizedFilePath, (err) => {
-        if (err) {
-            if (err.code === 'ENOENT') {
-                console.error(`File not found for download: ${normalizedFilePath}`);
-                return res.status(404).send('File not found.');
-            }
-            console.error('Error during file download:', err);
-            res.status(500).send('Error downloading file.');
+    const files = [];
+    const collectFiles = (dir) => {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const entryPath = path.join(dir, entry.name);
+        const stat = fs.statSync(entryPath);
+        if (stat.isDirectory()) {
+          collectFiles(entryPath);
+        } else {
+          const relPath = path.relative(uploadDir, entryPath).replace(/\\/g, '/');
+          files.push({ path: relPath, size: stat.size });
         }
-    });
+      }
+    };
+
+    collectFiles(uploadDir);
+    res.json(files);
+  } catch (err) {
+    console.error('❌ Error reading files:', err);
+    res.status(500).send('Error reading files');
+  }
 });
 
+// Download file (safe)
+app.get('/download/*', isAuthenticated, (req, res) => {
+  const relativePath = decodeURIComponent(req.params[0]);
+  const filePath = path.join(uploadDir, relativePath);
+  const normalizedFilePath = path.normalize(filePath);
+
+  if (!fs.existsSync(normalizedFilePath) || !normalizedFilePath.startsWith(uploadDir)) {
+    return res.status(404).send('File not found or unauthorized.');
+  }
+
+  res.download(normalizedFilePath, err => {
+    if (err) {
+      console.error('Download error:', err);
+      res.status(500).send('Download error.');
+    }
+  });
+});
+
+// Delete file
+app.delete('/delete/*', isAuthenticated, (req, res) => {
+  const relPath = decodeURIComponent(req.params[0]);
+  const fullPath = path.join(uploadDir, relPath);
+
+  if (!fullPath.startsWith(uploadDir)) {
+    return res.status(403).send('Unauthorized file path.');
+  }
+
+  if (fs.existsSync(fullPath)) {
+    fs.unlinkSync(fullPath);
+    res.sendStatus(200);
+  } else {
+    res.status(404).send('File not found.');
+  }
+});
+
+// Home
 app.get('/', isAuthenticated, (_req, res) => {
-    res.sendFile(path.join(__dirname, 'public/index.html'));
+  res.sendFile(path.join(__dirname, 'public/index.html'));
 });
 
+// Start server
 app.listen(PORT, () => {
-    console.log(`🚀 MyCloud running at http://localhost:${PORT}`);
+  console.log(`🚀 MyCloud running at http://localhost:${PORT}`);
 });
-
 
 
   
