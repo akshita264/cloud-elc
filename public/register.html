@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Register – MyCloud</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+</head>
+<body class="landing-body">
+  <div class="overlay"></div>
+  <div class="landing-container glass">
+    <h1>Create an Account</h1>
+    <p class="tagline">Start storing your data securely and privately.</p>
+
+    <form action="/register" method="POST" class="login-form">
+      <input type="text" name="username" placeholder="Username" required />
+      <input type="password" name="password" placeholder="Password" required />
+      <button type="submit" class="btn register-btn">Register</button>
+    </form>
+
+    <p style="margin-top: 1rem; color: #eee;">
+      Already have an account? <a href="/login.html" class="signup-link">Login</a>
+    </p>
+  </div>
+</body>
+</html>

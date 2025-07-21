@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MyCloud – Your Private Cloud</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet" />
+</head>
+<body class="landing-body">
+  <div class="overlay"></div>
+  <div class="landing-container glass">
+    <h1>Welcome to <span>MyCloud</span></h1>
+    <p class="tagline">Tired of your data being used for profit? Make your own private cloud.</p>
+
+    <!-- Button group -->
+    <div class="button-group">
+      <a href="/login.html" class="btn login-btn">Login</a>
+      <a href="/register.html" class="btn register-btn">Register</a>
+    </div>
+
+  <script>
+    // Optionally show a flash message after upload (if redirected back with a query)
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('upload')) {
+      const msg = document.getElementById('upload-message');
+      msg.textContent = decodeURIComponent(params.get('upload'));
+    }
+  </script>
+</body>
+</html>
