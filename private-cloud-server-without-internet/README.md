@@ -4,7 +4,7 @@ Welcome to the official GitHub repository for our **Private Cloud Server** proje
 
 ## 📌 Project Overview
 
-This project aims to build a **secure, offline-accessible private cloud system** to enable file sharing and collaboration without relying on the internet. The cloud server can be accessed across multiple devices including laptops and smartphones via LAN or direct Wi-Fi hotspot.
+This project aims to build a **secure, offline-accessible private cloud system** to enable file sharing and collaboration without relying on the internet.we can access this cloud server across multiple devices including laptops and smartphones via LAN or direct Wi-Fi hotspot.
 
 ### 🔒 Key Objectives
 - Develop a **private cloud server** that works in offline environments.
@@ -57,7 +57,7 @@ Aanchal Trehan
 Rahil Yadav 
 Amanya 
 Gurkirat Singh 
-Nadini Arora
+Nandini Arora
 
 Mentors from ELC @ Thapar University
 
